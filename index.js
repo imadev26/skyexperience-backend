@@ -15,7 +15,10 @@ import blogPostsRoutes from './routes/BlogPosts.js';
 import userRoutes from './routes/Users.js';
 import categoryRoutes from './routes/Categories.js';
 
-dotenv.config();
+// Load .env only in development
+if (process.env.NODE_ENV !== 'production') {
+  dotenv.config();
+}
 
 const app = express();
 const PORT = process.env.PORT || 5000;
