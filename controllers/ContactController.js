@@ -19,15 +19,26 @@ export const sendContactMessage = async (req, res) => {
   }
 
   try {
+    // Configure Gmail SMTP with explicit settings for better reliability
     const transporter = nodemailer.createTransport({
-      service: 'gmail',
+      host: 'smtp.gmail.com',
+      port: 587, // Use port 587 with STARTTLS (more reliable than 465)
+      secure: false, // true for 465, false for other ports
       auth: {
         user: process.env.MAIL_USER,
         pass: process.env.MAIL_PASS,
       },
-      connectionTimeout: 5000, // 5 second timeout
-      greetingTimeout: 5000
+      connectionTimeout: 10000, // 10 second timeout
+      greetingTimeout: 10000,
+      socketTimeout: 10000,
+      logger: false, // Set to true for debugging
+      debug: false // Set to true for debugging
     })
+
+    // Verify connection before sending
+    console.log('🔄 Verifying SMTP connection...')
+    await transporter.verify()
+    console.log('✅ SMTP connection verified')
 
     const emailSubject = subject
       ? `🎈 [${subject}] — Message from ${firstName} ${lastName || ''}`
@@ -112,6 +123,12 @@ export const sendContactMessage = async (req, res) => {
 
   } catch (error) {
     console.error('❌ Failed to send email:', error.message)
+    console.error('Error code:', error.code)
+    console.error('Error details:', {
+      command: error.command,
+      response: error.response,
+      responseCode: error.responseCode
+    })
     
     // Still return success to the user even if email fails
     // Log the contact info for manual follow-up
