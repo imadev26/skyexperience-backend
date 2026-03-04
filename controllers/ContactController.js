@@ -1,4 +1,4 @@
-import nodemailer from 'nodemailer'
+import { Resend } from 'resend'
 
 export const sendContactMessage = async (req, res) => {
   const { firstName, lastName, email, phone, message, subject } = req.body
@@ -7,9 +7,9 @@ export const sendContactMessage = async (req, res) => {
     return res.status(400).json({ message: 'firstName, email and message are required.' })
   }
 
-  // Check if email credentials are configured
-  if (!process.env.MAIL_USER || !process.env.MAIL_PASS) {
-    console.warn('⚠️ Email credentials not configured. Saving contact but not sending email.')
+  // Check if Resend API key is configured
+  if (!process.env.RESEND_API_KEY || !process.env.MAIL_USER) {
+    console.warn('⚠️ Email service not configured. Saving contact but not sending email.')
     console.log('📩 Contact received:', { firstName, lastName, email, phone, subject, message })
     
     return res.status(200).json({ 
@@ -19,26 +19,7 @@ export const sendContactMessage = async (req, res) => {
   }
 
   try {
-    // Configure Gmail SMTP with explicit settings for better reliability
-    const transporter = nodemailer.createTransport({
-      host: 'smtp.gmail.com',
-      port: 587, // Use port 587 with STARTTLS (more reliable than 465)
-      secure: false, // true for 465, false for other ports
-      auth: {
-        user: process.env.MAIL_USER,
-        pass: process.env.MAIL_PASS,
-      },
-      connectionTimeout: 10000, // 10 second timeout
-      greetingTimeout: 10000,
-      socketTimeout: 10000,
-      logger: false, // Set to true for debugging
-      debug: false // Set to true for debugging
-    })
-
-    // Verify connection before sending
-    console.log('🔄 Verifying SMTP connection...')
-    await transporter.verify()
-    console.log('✅ SMTP connection verified')
+    const resend = new Resend(process.env.RESEND_API_KEY)
 
     const emailSubject = subject
       ? `🎈 [${subject}] — Message from ${firstName} ${lastName || ''}`
@@ -109,26 +90,26 @@ export const sendContactMessage = async (req, res) => {
       </html>
     `
 
-    await transporter.sendMail({
-      from: `"Sky Experience" <${process.env.MAIL_USER}>`,
+    console.log('📧 Sending email via Resend...')
+    
+    const { data, error } = await resend.emails.send({
+      from: 'Sky Experience <onboarding@resend.dev>',
+      to: [process.env.MAIL_USER],
       replyTo: email,
-      to: process.env.MAIL_USER,
       subject: emailSubject,
-      text: `Name: ${firstName} ${lastName || ''}\nEmail: ${email}\nPhone: ${phone || 'N/A'}\nSubject: ${subject || 'N/A'}\n\nMessage:\n${message}`,
-      html: htmlTemplate
+      html: htmlTemplate,
+      text: `Name: ${firstName} ${lastName || ''}\nEmail: ${email}\nPhone: ${phone || 'N/A'}\nSubject: ${subject || 'N/A'}\n\nMessage:\n${message}`
     })
 
-    console.log('✅ Email sent successfully to:', process.env.MAIL_USER)
+    if (error) {
+      throw new Error(error.message)
+    }
+
+    console.log('✅ Email sent successfully via Resend! ID:', data.id)
     res.status(200).json({ message: 'Email sent successfully' })
 
   } catch (error) {
     console.error('❌ Failed to send email:', error.message)
-    console.error('Error code:', error.code)
-    console.error('Error details:', {
-      command: error.command,
-      response: error.response,
-      responseCode: error.responseCode
-    })
     
     // Still return success to the user even if email fails
     // Log the contact info for manual follow-up
