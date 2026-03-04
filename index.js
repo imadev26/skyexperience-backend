@@ -62,40 +62,38 @@ app.use(cors({
 
 // Routes
 import multer from 'multer';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import { uploadToCloudinary } from './config/cloudinary.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// ... (existing imports)
-
-// Static files
-app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
-
-// Multer Storage
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, 'public/uploads');
+// Multer config for memory storage (Upload to Cloudinary)
+const storage = multer.memoryStorage();
+const upload = multer({
+  storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit
   },
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + path.extname(file.originalname));
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only images are allowed'));
+    }
   }
 });
 
-const upload = multer({ storage });
-
-// Upload Endpoint
-app.post('/api/upload', upload.single('file'), (req, res) => {
+// Upload Endpoint - Cloudinary
+app.post('/api/upload', upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ message: 'No file uploaded' });
     }
-    const fileUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
-    res.status(200).json({ url: fileUrl });
+    
+    // Upload to Cloudinary
+    const cloudinaryUrl = await uploadToCloudinary(req.file.buffer);
+    
+    res.status(200).json({ url: cloudinaryUrl });
   } catch (error) {
     console.error('Upload Error:', error);
-    res.status(500).json({ message: 'Upload failed' });
+    res.status(500).json({ message: 'Upload failed', error: error.message });
   }
 });
 
