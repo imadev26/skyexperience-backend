@@ -26,28 +26,38 @@ const PORT = process.env.PORT || 5000;
 // Middleware
 app.use(express.json());
 app.use(cookieParser());
-const allowedOrigins = (process.env.ORIGIN || 'http://localhost:3000').split(',').map(origin => origin.trim());
 
+// CORS Configuration - Allow localhost and configured origins
 app.use(cors({
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps, Postman, or same-origin)
+    // Allow requests with no origin (Postman, mobile apps, server-to-server)
     if (!origin) return callback(null, true);
     
-    // Allow localhost in development
-    if (origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1')) {
+    // Allow all localhost and 127.0.0.1 (both http and https)
+    if (origin.match(/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/)) {
       return callback(null, true);
     }
     
-    // Check against allowed origins
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
+    // Check against environment variable origins
+    const allowedOrigins = (process.env.ORIGIN || '').split(',').map(o => o.trim()).filter(Boolean);
+    if (allowedOrigins.length > 0 && allowedOrigins.includes(origin)) {
+      return callback(null, true);
     }
+    
+    // Development: allow all origins if ORIGIN is not set
+    if (!process.env.ORIGIN || process.env.ORIGIN === '') {
+      console.log(`⚠️ CORS: Allowing origin ${origin} (ORIGIN env var not set)`);
+      return callback(null, true);
+    }
+    
+    // Origin not allowed
+    console.log(`❌ CORS: Blocked origin ${origin}`);
+    callback(null, false);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+  exposedHeaders: ['Set-Cookie']
 }));
 
 // Routes

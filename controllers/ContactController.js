@@ -7,6 +7,17 @@ export const sendContactMessage = async (req, res) => {
     return res.status(400).json({ message: 'firstName, email and message are required.' })
   }
 
+  // Check if email credentials are configured
+  if (!process.env.MAIL_USER || !process.env.MAIL_PASS) {
+    console.warn('⚠️ Email credentials not configured. Saving contact but not sending email.')
+    console.log('📩 Contact received:', { firstName, lastName, email, phone, subject, message })
+    
+    return res.status(200).json({ 
+      message: 'Contact message received successfully (email notification disabled)',
+      warning: 'Email service not configured'
+    })
+  }
+
   try {
     const transporter = nodemailer.createTransport({
       service: 'gmail',
