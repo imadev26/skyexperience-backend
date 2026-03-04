@@ -37,8 +37,22 @@ app.use(cors({
     if (origin.match(/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/)) {
       return callback(null, true);
     }
+
+    // Allow all Vercel preview and production deployments for this project
+    if (origin.match(/^https:\/\/.*\.vercel\.app$/)) {
+      return callback(null, true);
+    }
+
+    // Allow the production domain
+    const productionDomains = [
+      'https://skyexperience-marrakech.com',
+      'https://www.skyexperience-marrakech.com',
+    ];
+    if (productionDomains.includes(origin)) {
+      return callback(null, true);
+    }
     
-    // Check against environment variable origins
+    // Check against environment variable origins (comma-separated)
     const allowedOrigins = (process.env.ORIGIN || '').split(',').map(o => o.trim()).filter(Boolean);
     if (allowedOrigins.length > 0 && allowedOrigins.includes(origin)) {
       return callback(null, true);
