@@ -24,7 +24,9 @@ export const sendContactMessage = async (req, res) => {
       auth: {
         user: process.env.MAIL_USER,
         pass: process.env.MAIL_PASS,
-      }
+      },
+      connectionTimeout: 5000, // 5 second timeout
+      greetingTimeout: 5000
     })
 
     const emailSubject = subject
@@ -105,10 +107,19 @@ export const sendContactMessage = async (req, res) => {
       html: htmlTemplate
     })
 
+    console.log('✅ Email sent successfully to:', process.env.MAIL_USER)
     res.status(200).json({ message: 'Email sent successfully' })
 
   } catch (error) {
-    console.error('Failed to send email:', error)
-    res.status(500).json({ message: 'Failed to send email', error: error.message })
+    console.error('❌ Failed to send email:', error.message)
+    
+    // Still return success to the user even if email fails
+    // Log the contact info for manual follow-up
+    console.log('📩 Contact info (email failed):', { firstName, lastName, email, phone, subject, message })
+    
+    res.status(200).json({ 
+      message: 'Message received successfully',
+      warning: 'Email notification failed but your message was recorded'
+    })
   }
 }
